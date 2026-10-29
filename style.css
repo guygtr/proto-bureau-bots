@@ -89,3 +89,11 @@ summary .doux{font-weight:400;font-size:11px;margin-left:auto}
 .sim .ico{width:0;height:0;border-style:solid;border-width:6px 0 6px 10px;border-color:transparent transparent transparent #e6e9f0}
 .sim[aria-pressed=true] .ico{width:10px;height:10px;border:0;background:#e6e9f0;border-radius:2px}
 .vues button{-webkit-appearance:none;appearance:none}
+/* Vue 2D de secours */
+.plan2d{position:absolute;left:0;right:0;top:130px;width:100%;height:calc(100% - 210px)}
+.plan2d .bot2d{cursor:pointer}
+.plan2d .pulse{animation:pulse2d 1.4s ease-out infinite;transform-box:fill-box;transform-origin:center}
+@keyframes pulse2d{from{transform:scale(1);opacity:1}to{transform:scale(2.6);opacity:0}}
+.avis-2d{top:92px;max-width:min(560px,90%);font-size:12px;padding:6px 12px}
+.vues button:disabled{opacity:.4;cursor:not-allowed}
+@media (max-width:860px){ .plan2d{top:168px;height:calc(100% - 318px)} .avis-2d{top:112px} }

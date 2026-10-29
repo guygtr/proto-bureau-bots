@@ -23,7 +23,7 @@ const forme = () => (conteneur.clientWidth < conteneur.clientHeight * 0.9 ? 'por
 const params = new URLSearchParams(location.search);
 const mobile = matchMedia('(max-width:860px), (pointer:coarse)').matches;
 // Mode « lite » : téléphones / écrans tactiles, peu de mémoire, ou après une perte de contexte 3D
-const lite = params.get('lite') === '1' || (params.get('lite') !== '0' && (mobile || (navigator.deviceMemory && navigator.deviceMemory <= 4) || sessionStorage.getItem('gtr-lite') === '1'));
+const lite = params.get('lite') === '1' || (params.get('lite') !== '0' && sessionStorage.getItem('gtr-lite') === '1');
 document.documentElement.dataset.mode = lite ? 'lite' : 'complet';
 function avis(msg, duree = 0) {
   let el = document.getElementById('avis-3d');
@@ -35,8 +35,7 @@ let renderer;
 try {
   renderer = new THREE.WebGLRenderer(lite ? { antialias: false, powerPreference: 'low-power', alpha: false, stencil: false, depth: true } : { antialias: true, powerPreference: 'default' });
 } catch (e) {
-  avis('La 3D (WebGL) n’est pas disponible sur cet appareil. Les états restent visibles dans le panneau.');
-  throw e;
+  throw e; // le chargeur de index.html bascule sur la vue 2D
 }
 renderer.setPixelRatio(lite ? 1 : Math.min(devicePixelRatio, 2));
 renderer.setClearColor('#02030a', 1);
@@ -49,8 +48,13 @@ let echecsRestauration = 0, attenteRestauration = null, perdu = false;
 const extPerte = renderer.getContext().getExtension('WEBGL_lose_context');
 renderer.domElement.addEventListener('webglcontextlost', (e) => {
   e.preventDefault(); perdu = true; renderer.setAnimationLoop(null);
-  if (!lite) sessionStorage.setItem('gtr-lite', '1'); // prochaine visite : mode lite
   clearTimeout(attenteRestauration);
+  if (!lite) { // version complète perdue : on repart automatiquement en mode lite
+    sessionStorage.setItem('gtr-lite', '1');
+    avis('Contexte 3D perdu : passage au mode allégé…');
+    setTimeout(() => location.reload(), 1200);
+    return;
+  }
   const essayer = () => {
     if (!perdu) return;
     echecsRestauration++;

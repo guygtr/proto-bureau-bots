@@ -63,6 +63,16 @@
     <p>Site réalisé par la GTR-Teams</p>
   </footer>
 </div>
-<script type="module" src="app.js"></script>
+<script type="module">
+// Choix du rendu : 3D si WebGL répond, sinon vue 2D (SVG) avec les mêmes données
+const q = new URLSearchParams(location.search);
+let ok = false;
+if (!q.has('sans3d')) {
+  try { const c = document.createElement('canvas'); const gl = c.getContext('webgl2') || c.getContext('webgl'); ok = !!gl; gl && gl.getExtension('WEBGL_lose_context')?.loseContext(); } catch { ok = false; }
+}
+const secours = () => import('./secours2d.js');
+if (ok) import('./app.js').catch((e) => { console.info('3D indisponible, vue 2D :', e && e.message); secours(); });
+else secours();
+</script>
 </body>
 </html>

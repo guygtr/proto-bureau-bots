@@ -57,3 +57,7 @@ En ligne : https://guygtr.github.io/proto-bureau-bots/ (bouton **Simulation** po
 ---
 © GTR Technologies Inc. · Tous droits réservés.
 Site réalisé par la GTR-Teams
+
+## Repli
+- Version complète par défaut (ordi et cellulaire). Mode allégé : `?lite=1`, ou automatique après une perte du contexte 3D.
+- Sans WebGL (ex. Chrome qui a désactivé la 3D) : vue 2D (SVG) avec compteurs, panneaux et simulation. Forcer : `?sans3d=1`.
