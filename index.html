@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Bureau virtuel GTR</title>
-<meta name="description" content="Bureau virtuel 3D : où sont les bots de Guy, au travail, en attente ou en pause.">
+<title>Station spatiale GTR</title>
+<meta name="description" content="Station spatiale 3D en orbite : les bots de Guy au travail dans leurs modules, en attente ou en pause dans la cupole.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Crect width=%2216%22 height=%2216%22 rx=%223%22 fill=%22%238b7bff%22/%3E%3C/svg%3E">
 <link rel="stylesheet" href="style.css">
 <script type="importmap">
@@ -14,14 +14,14 @@
 <body>
 <div class="app">
   <main class="vue">
-    <div id="scene" aria-label="Scène 3D du bureau. Touchez un bot pour voir sa fiche."></div>
+    <div id="scene" aria-label="Scène 3D de la station. Touchez un astronaute pour voir sa fiche."></div>
     <header class="entete">
-      <div class="titre"><span class="logo" aria-hidden="true"></span><h1>Bureau virtuel GTR</h1><span id="badge-mode" class="badge">En direct</span></div>
+      <div class="titre"><span class="logo" aria-hidden="true"></span><h1>Station spatiale GTR</h1><span id="badge-mode" class="badge">En direct</span></div>
       <ul class="compteurs" aria-live="polite">
         <li><span class="pt occupe"></span><b id="c-occupe">0</b> au travail</li>
         <li><span class="pt attend"></span><b id="c-attend">0</b> attend Guy</li>
         <li><span class="pt libre"></span><b id="c-libre">0</b> libres</li>
-        <li><span class="pt bureau"></span><b id="c-bureaux">0</b> bureaux libres</li>
+        <li><span class="pt bureau"></span><b id="c-bureaux">0</b> modules calmes</li>
       </ul>
     </header>
     <div class="commandes">
@@ -30,11 +30,11 @@
         <li><span class="pt attend"></span>Attend Guy</li>
         <li><span class="pt libre"></span>Libre</li>
       </ul>
-      <div class="ambiance" role="group" aria-label="Ambiance">
-        <button data-amb="maintenant" aria-pressed="true">◷ Maintenant</button>
-        <button data-amb="jour" aria-pressed="false">☀ Jour</button>
-        <button data-amb="soir" aria-pressed="false">◒ Soir</button>
-        <button data-amb="nuit" aria-pressed="false">☾ Nuit</button>
+      <div class="vues" role="group" aria-label="Vue d'orbite">
+        <button data-vue="ensemble" aria-pressed="true">◎ Ensemble</button>
+        <button data-vue="jour" aria-pressed="false">☀ Côté jour</button>
+        <button data-vue="nuit" aria-pressed="false">☾ Côté nuit</button>
+        <button data-vue="cupole" aria-pressed="false">◍ Cupole</button>
       </div>
       <button id="btn-sim" class="sim" aria-pressed="false">▶ Simulation</button>
     </div>
@@ -49,7 +49,7 @@
   </main>
   <section class="panneau">
     <details id="d-equipe" open>
-      <summary>Équipe <span id="nb-bots" class="doux"></span></summary>
+      <summary>Équipage <span id="nb-bots" class="doux"></span></summary>
       <ul id="liste-equipe" class="liste"></ul>
     </details>
     <details id="d-activite" open>

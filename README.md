@@ -1,13 +1,18 @@
-# Bureau virtuel GTR (prototype)
+# Station spatiale GTR (prototype v3)
 
-Étage de bureau 3D en vue isométrique (plancher de bois, mur de fenêtres, cuisine, bureau vitré, lounge) où chaque bot de Guy a un petit robot.
-Les bots sont regroupés par équipe sur des tapis lumineux. **Au travail** : le robot est assis à son bureau, écran allumé et halo au sol.
-**Attend Guy** : à son bureau, halo orange. **Libre** : au canapé, à la table ronde ou à la cuisine.
-Panneau Équipe et fil Activité à droite (sous la scène sur cellulaire), ambiances Maintenant / Jour / Soir / Nuit,
-et un bouton **Simulation** qui change des états au hasard pour voir les robots marcher.
-Touchez un robot ou une ligne de l'équipe pour voir sa fiche.
+Station spatiale 3D en orbite au-dessus de la Terre (procédurale : continents, nuages, terminateur jour/nuit, lumières des villes, étoiles).
+Un module par équipe, relié au moyeu central par des tubes et des treillis, avec panneaux solaires. Le module **Direction** est la passerelle de commandement.
+Les modules sont en coupe avec un toit vitré, on voit l'intérieur.
 
-Page statique en Three.js (vendorisé dans `vendor/`, aucune build), prévue pour GitHub Pages.
+- **Au travail** : l'astronaute-robot flotte devant sa console, écran allumé.
+- **Attend Guy** : à sa console, bras levé, balise et anneaux orange qui pulsent.
+- **Libre** : il flotte dans la cupole d'observation au centre.
+
+Interface : 4 compteurs (au travail, attend Guy, libres, modules calmes), panneau Équipage, fil Activité,
+vues d'orbite **Ensemble / Côté jour / Côté nuit / Cupole**, et un bouton **Simulation** qui change des états au hasard.
+Les étiquettes de noms s'écartent ou se masquent pour ne jamais se chevaucher. Touchez un astronaute ou une ligne pour sa fiche.
+
+Page statique en Three.js (vendorisé dans `vendor/`, aucune build), prévue pour GitHub Pages. Ordinateur, tablette et cellulaire.
 
 ## Lancer en local
 
@@ -33,8 +38,8 @@ La page relit `status.json` toutes les 60 secondes. Le nombre de bots est lu dan
 ```
 
 - `etat` : `occupe` (au travail), `attend` (attend une réponse de Guy) ou `libre`.
-- `equipe` : regroupe les bureaux. L'équipe « Direction » va dans le bureau vitré.
-- `court` (optionnel) : nom affiché au-dessus du robot. `activite` (optionnel) : fil d'exemple.
+- `equipe` : un module par équipe. L'équipe « Direction » devient la passerelle de commandement.
+- `court` (optionnel) : nom affiché au-dessus de l'astronaute. `activite` (optionnel) : fil d'exemple.
 - `tache` : texte court et vague seulement (le dépôt sera public).
 
 ## Prochaines étapes

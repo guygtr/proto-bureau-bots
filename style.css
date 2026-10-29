@@ -1,4 +1,4 @@
-:root{--fond:#0d1117;--carte:rgba(22,27,38,.86);--bord:rgba(255,255,255,.08);--texte:#e6e9f0;--doux:#8b93a7;
+:root{--fond:#05070d;--carte:rgba(22,27,38,.86);--bord:rgba(255,255,255,.08);--texte:#e6e9f0;--doux:#8b93a7;
 --occupe:#8b7bff;--attend:#ff9f43;--libre:#a7b0c0;--bureau:#5b6478;--accent:#8b7bff}
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;background:var(--fond);color:var(--texte);font:14px/1.4 Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
@@ -9,11 +9,11 @@ html,body{margin:0;height:100%;background:var(--fond);color:var(--texte);font:14
 ul{list-style:none;margin:0;padding:0}
 .pt{display:inline-block;width:8px;height:8px;border-radius:50%;flex:none}
 .pt.occupe{background:var(--occupe)}.pt.attend{background:var(--attend)}.pt.libre{background:transparent;border:1.5px solid var(--libre)}.pt.bureau{background:var(--bureau)}
-.entete{position:absolute;top:14px;left:16px;right:16px;pointer-events:none;z-index:4}
+.entete{position:absolute;top:14px;left:16px;right:16px;pointer-events:none;z-index:4;text-shadow:0 1px 6px rgba(0,0,0,.8)}
 .titre{display:flex;align-items:center;gap:10px}
 .logo{width:22px;height:22px;border-radius:6px;background:conic-gradient(from 200deg,#8b7bff,#3ddc97,#ff9f43,#4cc3ff,#8b7bff)}
 h1{font-size:17px;font-weight:650;margin:0;letter-spacing:.01em}
-.badge{font-size:11px;padding:2px 8px;border-radius:999px;background:rgba(139,123,255,.18);color:#c9c1ff;border:1px solid rgba(139,123,255,.35)}
+.badge{font-size:11px;padding:2px 8px;border-radius:999px;background:rgba(20,18,50,.75);color:#c9c1ff;border:1px solid rgba(139,123,255,.35)}
 .compteurs{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
 .compteurs li{display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:var(--carte);border:1px solid var(--bord);font-size:12px;color:var(--doux)}
 .compteurs b{color:var(--texte)}
@@ -21,10 +21,10 @@ h1{font-size:17px;font-weight:650;margin:0;letter-spacing:.01em}
 .commandes>*{pointer-events:auto}
 .legende{display:grid;grid-template-columns:auto auto;gap:4px 14px;padding:10px 12px;border-radius:12px;background:var(--carte);border:1px solid var(--bord);font-size:12px;color:var(--doux)}
 .legende li{display:flex;align-items:center;gap:7px}
-.ambiance{display:flex;gap:2px;padding:4px;border-radius:12px;background:var(--carte);border:1px solid var(--bord)}
+.vues{display:flex;gap:2px;padding:4px;border-radius:12px;background:var(--carte);border:1px solid var(--bord)}
 button{font:inherit;color:var(--texte);cursor:pointer}
-.ambiance button,.sim{min-height:40px;padding:0 12px;border-radius:9px;border:0;background:transparent;font-size:13px;color:var(--doux);white-space:nowrap}
-.ambiance button[aria-pressed=true]{background:rgba(255,255,255,.1);color:var(--texte)}
+.vues button,.sim{min-height:40px;padding:0 12px;border-radius:9px;border:0;background:transparent;font-size:13px;color:var(--doux);white-space:nowrap}
+.vues button[aria-pressed=true]{background:rgba(255,255,255,.1);color:var(--texte)}
 .sim{background:var(--carte);border:1px solid var(--bord);border-radius:12px;color:var(--texte)}
 .sim[aria-pressed=true]{border-color:rgba(139,123,255,.6);background:rgba(139,123,255,.2)}
 button:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
@@ -49,8 +49,10 @@ summary .doux{font-weight:400;font-size:11px;margin-left:auto}
 .pied{grid-column:1/3;padding:8px 16px;text-align:center;font-size:12px;color:var(--doux);border-top:1px solid var(--bord);background:#0b0f15}
 .pied p{margin:0}
 /* étiquettes 3D */
-.etq{display:flex;align-items:center;gap:5px;padding:2px 7px 2px 5px;border-radius:999px;background:rgba(16,20,30,.78);border:1px solid rgba(255,255,255,.12);font-size:11px;color:#eef1f7;white-space:nowrap;pointer-events:none;backdrop-filter:blur(4px)}
-.sol{font:700 11px/1 system-ui;letter-spacing:.16em;text-transform:uppercase;pointer-events:none}
+.etq,.mod{pointer-events:none}
+.etq .in{display:flex;align-items:center;gap:5px;padding:2px 7px 2px 5px;border-radius:999px;background:rgba(8,12,24,.82);border:1px solid rgba(255,255,255,.14);font-size:11px;color:#eef1f7;white-space:nowrap;transition:transform .15s,opacity .15s}
+.etq[data-etat=attend] .in{border-color:rgba(255,159,67,.7);box-shadow:0 0 10px rgba(255,159,67,.45)}
+.mod .in{display:block;font:700 10px/1 system-ui,sans-serif;letter-spacing:.16em;text-transform:uppercase;color:var(--c);padding:3px 8px;border:1px solid color-mix(in srgb,var(--c) 55%,transparent);border-radius:6px;background:rgba(5,8,18,.7);white-space:nowrap;transition:transform .15s,opacity .15s}
 .fiche{position:absolute;right:16px;top:80px;width:min(300px,calc(100% - 32px));padding:14px 16px;background:var(--carte);border:1px solid var(--bord);border-radius:14px;backdrop-filter:blur(10px);box-shadow:0 12px 30px rgba(0,0,0,.45);z-index:6}
 .fiche h2{font-size:15px;margin:0 32px 2px 0}
 .fiche p{margin:4px 0}
@@ -59,18 +61,23 @@ summary .doux{font-weight:400;font-size:11px;margin-left:auto}
 .erreur{position:absolute;left:16px;top:90px;margin:0;padding:8px 12px;background:#5a1d1d;border-radius:8px;z-index:6}
 @media (max-width:860px){
   .app{display:block;height:auto;overflow:visible}
-  .vue{height:auto}
+  .vue{height:100svh;min-height:560px;max-height:1100px}
+  #scene{position:absolute;inset:0}
   .entete{top:10px;left:10px;right:10px}
   h1{font-size:15px}
   .compteurs{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:8px}
   .compteurs li{padding:3px 8px;font-size:11px}
-  .commandes{position:static;flex-wrap:wrap;justify-content:center;padding:10px;gap:8px}
-  .vue{display:flex;flex-direction:column}
-  #scene{position:relative;inset:auto;height:calc(66vw + 125px);max-height:62vh;min-height:320px}
-  .legende{grid-template-columns:auto auto auto;order:3;width:100%;justify-content:center}
-  .ambiance button{padding:0 9px;font-size:12px}
+  .commandes{left:8px;right:8px;bottom:10px;flex-wrap:wrap;justify-content:space-between;gap:8px}
+  .vues{order:1;width:100%;justify-content:space-between}
+  .vues button{flex:1;padding:0 4px;font-size:12px}
+  .legende{order:2;grid-template-columns:auto auto auto;padding:8px 10px;font-size:11px;align-items:center}
+  .sim{order:3;min-height:40px}
   .panneau{border-left:0;padding:10px;overflow:visible}
-  .fiche{top:auto;bottom:12px;left:12px;right:12px;width:auto}
-  .vue.cell-libres-cachees .etq.libre{display:none}
-  .etq{font-size:10px;padding:1px 6px 1px 4px}
+  .fiche{top:auto;bottom:126px;left:12px;right:12px;width:auto}
+  .etq .in{font-size:10px;padding:1px 6px 1px 4px}
+  .mod .in{font-size:9px}
+}
+@media (min-width:861px) and (max-width:1100px){
+  .app{grid-template-columns:1fr 280px}
+  .legende{display:none}
 }
