@@ -109,8 +109,8 @@ const matTerre = new THREE.ShaderMaterial({
       float spec=pow(max(dot(reflect(-L,N),V),0.),30.)*(1.-terre)*(1.-nu)*0.55;
       vec3 jour=col*(0.05+1.05*max(d,0.))+vec3(1.,.95,.85)*spec*max(d,0.);
       jour=mix(jour,vec3(1.)*(0.06+0.95*max(d,0.)),nu*0.88);
-      float villes=terre*(1.-glace)*smoothstep(0.78,0.95,bruit(p*900.))*smoothstep(0.5,0.66,fbm(p*9.+7.));
-      villes+=terre*(1.-glace)*0.12*smoothstep(0.55,0.7,fbm(p*30.+3.))*smoothstep(0.5,0.66,fbm(p*9.+7.));
+      float zone=smoothstep(0.5,0.66,fbm(p*9.+7.));
+      float villes=terre*(1.-glace)*zone*(0.55*smoothstep(0.58,0.78,fbm(p*140.+1.))+0.18*smoothstep(0.52,0.7,fbm(p*35.+3.)));
       vec3 nuit=vec3(1.,.72,.38)*villes*1.3*(1.-nu*0.85)+col*0.015;
       gl_FragColor=vec4(mix(nuit,jour,t),1.);
       #include <tonemapping_fragment>
@@ -488,7 +488,7 @@ const VUES = {
 };
 const LUM = {
   jour: { dir: [0.55, 0.62, 0.55], coul: '#fff4e0', i: 3.0, hemi: 0.55, int: 4, expo: 1.1 },
-  nuit: { dir: [-0.45, -0.3, -0.85], coul: '#8fa2ff', i: 0.9, hemi: 0.38, int: 10, expo: 1.2 },
+  nuit: { dir: [-0.45, -0.3, -0.85], coul: '#9fb0ff', i: 1.9, hemi: 1.2, int: 18, expo: 1.35 },
 };
 let vueCourante = 'ensemble', lumCourante = 'jour';
 const anim = { t: 1, de: null, vers: null, cDe: null, cVers: null };
@@ -498,6 +498,9 @@ function appliquerLumiere(nom) {
   soleil.color.set(l.coul); soleil.intensity = l.i; hemi.intensity = l.hemi; renderer.toneMappingExposure = l.expo;
   soleil.position.copy(dirSoleil).multiplyScalar(60); soleil.target.position.set(0, 0, 0);
   for (const li of lumieresInt) li.intensity = l.int;
+  hemi.color.set(nom === 'nuit' ? '#b8c6ff' : '#9fb7ff'); hemi.groundColor.set(nom === 'nuit' ? '#3a4f8a' : '#1b4f8f');
+  for (const p of persos.values()) p.aura.material.color.set(p.coul);
+  if (plan) for (const po of plan.postes.values()) po.lueur.material.opacity = nom === 'nuit' ? 0.85 : 0.55;
   document.body.dataset.orbite = nom;
 }
 function marges() {
@@ -510,7 +513,7 @@ function cadrage(nom) {
   camera.aspect = w / h;
   camera.clearViewOffset();
   camera.updateProjectionMatrix();
-  const elev = (v.elev + (plan && plan.forme === 'portrait' && !v.cupole ? 14 : 0)) * deg, az = v.az * deg;
+  const elev = (v.elev + (plan && plan.forme === 'portrait' && !v.cupole ? 14 : 0)) * deg, az = v.az * deg * (plan && plan.forme === 'portrait' ? 0.25 : 1);
   const dir = new THREE.Vector3(Math.sin(az) * Math.cos(elev), Math.sin(elev), Math.cos(az) * Math.cos(elev));
   const cible = v.cupole ? new THREE.Vector3(0, 1.2, 0) : new THREE.Vector3(0, -0.2, 0);
   const lx = 1 - (2 * m.c) / w;
