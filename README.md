@@ -14,6 +14,11 @@ Les étiquettes de noms s'écartent ou se masquent pour ne jamais se chevaucher.
 
 Page statique en Three.js (vendorisé dans `vendor/`, aucune build), prévue pour GitHub Pages. Ordinateur, tablette et cellulaire.
 
+## Mode « lite » (cellulaire)
+
+Activé automatiquement sur écran tactile ou petit écran (et sur un appareil avec peu de mémoire, ou après une perte du contexte 3D). Pour le forcer : `?lite=1`, pour le désactiver : `?lite=0`.
+Pas de shader personnalisé (Terre en texture 512 px), Lambert, aucune ombre ni vitre ni lumière ponctuelle, station fusionnée par matériau (~125 appels de dessin au lieu de ~740), 400 étoiles, pixelRatio 1, sans anticrénelage, `low-power`, ~30 i/s, pause quand l'onglet est caché, redémarrage automatique si le contexte 3D est perdu.
+
 ## Lancer en local
 
 ```bash

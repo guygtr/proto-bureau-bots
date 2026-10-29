@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/OrbitControls.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/CSS2DRenderer.js';
+import { mergeGeometries } from 'three/addons/BufferGeometryUtils.js';
 
 const INTERVALLE_MS = 60_000;
 const VITESSE = 3.2;
@@ -21,6 +22,9 @@ const forme = () => (conteneur.clientWidth < conteneur.clientHeight * 0.9 ? 'por
 // ---------- Rendu ----------
 const params = new URLSearchParams(location.search);
 const mobile = matchMedia('(max-width:860px), (pointer:coarse)').matches;
+// Mode « lite » : téléphones / écrans tactiles, peu de mémoire, ou après une perte de contexte 3D
+const lite = params.get('lite') === '1' || (params.get('lite') !== '0' && (mobile || (navigator.deviceMemory && navigator.deviceMemory <= 4) || sessionStorage.getItem('gtr-lite') === '1'));
+document.documentElement.dataset.mode = lite ? 'lite' : 'complet';
 function avis(msg, duree = 0) {
   let el = document.getElementById('avis-3d');
   if (!el) { el = document.createElement('p'); el.id = 'avis-3d'; el.className = 'avis'; document.querySelector('.vue').append(el); }
@@ -29,20 +33,40 @@ function avis(msg, duree = 0) {
 }
 let renderer;
 try {
-  renderer = new THREE.WebGLRenderer({ antialias: !mobile, powerPreference: 'default' });
+  renderer = new THREE.WebGLRenderer(lite ? { antialias: false, powerPreference: 'low-power', alpha: false, stencil: false, depth: true } : { antialias: true, powerPreference: 'default' });
 } catch (e) {
   avis('La 3D (WebGL) n’est pas disponible sur cet appareil. Les états restent visibles dans le panneau.');
   throw e;
 }
-renderer.setPixelRatio(Math.min(devicePixelRatio, mobile ? 1.5 : 2));
+renderer.setPixelRatio(lite ? 1 : Math.min(devicePixelRatio, 2));
 renderer.setClearColor('#02030a', 1);
 let terreSimple = false;
 renderer.debug.onShaderError = (gl, prog, vs, fs) => {
   avis('Shader non pris en charge : Terre simplifiée.', 8000);
   if (!terreSimple) setTimeout(() => passerTerreSimple('erreur de shader'), 0);
 };
-renderer.domElement.addEventListener('webglcontextlost', (e) => { e.preventDefault(); avis('Contexte 3D perdu — rechargez la page.'); });
-renderer.shadowMap.enabled = true;
+let echecsRestauration = 0, attenteRestauration = null, perdu = false;
+const extPerte = renderer.getContext().getExtension('WEBGL_lose_context');
+renderer.domElement.addEventListener('webglcontextlost', (e) => {
+  e.preventDefault(); perdu = true; renderer.setAnimationLoop(null);
+  if (!lite) sessionStorage.setItem('gtr-lite', '1'); // prochaine visite : mode lite
+  clearTimeout(attenteRestauration);
+  const essayer = () => {
+    if (!perdu) return;
+    echecsRestauration++;
+    if (echecsRestauration > 2) { avis('La 3D ne peut pas redémarrer sur cet appareil. Rechargez la page.'); return; }
+    try { extPerte && extPerte.restoreContext(); } catch {}
+    attenteRestauration = setTimeout(essayer, 3000);
+  };
+  attenteRestauration = setTimeout(essayer, 1500);
+}, false);
+renderer.domElement.addEventListener('webglcontextrestored', () => {
+  perdu = false; echecsRestauration = 0; clearTimeout(attenteRestauration);
+  const el = document.getElementById('avis-3d'); if (el) el.remove();
+  // three.js recrée lui-même géométries, textures et shaders sur le nouveau contexte
+  demarrer();
+}, false);
+renderer.shadowMap.enabled = !lite;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.1;
@@ -59,7 +83,7 @@ controls.enableDamping = true; controls.minDistance = 6; controls.maxDistance = 
 
 const hemi = new THREE.HemisphereLight('#9fb7ff', '#1b4f8f', 0.55); scene.add(hemi);
 const soleil = new THREE.DirectionalLight('#fff4e0', 3.0);
-soleil.castShadow = true; soleil.shadow.mapSize.set(2048, 2048);
+soleil.castShadow = !lite; soleil.shadow.mapSize.set(2048, 2048);
 soleil.shadow.bias = -0.0005; soleil.shadow.normalBias = 0.04;
 Object.assign(soleil.shadow.camera, { left: -24, right: 24, top: 24, bottom: -24, near: 1, far: 120 });
 scene.add(soleil, soleil.target);
@@ -67,12 +91,13 @@ const dirSoleil = new THREE.Vector3();
 
 // ---------- Utilitaires ----------
 const cacheMat = new Map();
-const mat = (c, o = {}) => { const k = c + JSON.stringify(o); if (!cacheMat.has(k)) cacheMat.set(k, new THREE.MeshStandardMaterial({ color: c, roughness: 0.55, metalness: 0.15, ...o })); return cacheMat.get(k); };
+const mat = (c, o = {}) => { const k = lite ? c + (o.emissive || '') : c + JSON.stringify(o); if (!cacheMat.has(k)) cacheMat.set(k, lite ? new THREE.MeshLambertMaterial({ color: c, ...(o.emissive ? { emissive: o.emissive, emissiveIntensity: o.emissiveIntensity ?? 1 } : {}) }) : new THREE.MeshStandardMaterial({ color: c, roughness: 0.55, metalness: 0.15, ...o })); cacheMat.get(k).userData.partage = true; return cacheMat.get(k); };
 function mesh(parent, geo, m, x = 0, y = 0, z = 0, ombre = true) {
   const o = new THREE.Mesh(geo, typeof m === 'string' ? mat(m) : m); o.position.set(x, y, z);
   o.castShadow = ombre; o.receiveShadow = true; parent.add(o); return o;
 }
-const lum = (c) => new THREE.MeshBasicMaterial({ color: c, toneMapped: false });
+const cacheLum = new Map();
+const lum = (c) => { if (!cacheLum.has(c)) { const m = new THREE.MeshBasicMaterial({ color: c, toneMapped: false }); m.userData.partage = true; cacheLum.set(c, m); } return cacheLum.get(c); };
 const texHalo = (() => {
   const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
   const r = g.createRadialGradient(64, 64, 0, 64, 64, 64);
@@ -89,7 +114,7 @@ function nomCourt(b, tous) {
 
 // ---------- Ciel étoilé ----------
 {
-  const n = 2600, pos = new Float32Array(n * 3), col = new Float32Array(n * 3);
+  const n = lite ? 400 : 2600, pos = new Float32Array(n * 3), col = new Float32Array(n * 3);
   for (let i = 0; i < n; i++) {
     const u = Math.random() * 2 - 1, t = Math.random() * Math.PI * 2, r = 900;
     const s = Math.sqrt(1 - u * u); pos.set([r * s * Math.cos(t), r * u, r * s * Math.sin(t)], i * 3);
@@ -139,7 +164,25 @@ const matTerre = new THREE.ShaderMaterial({
       #include <colorspace_fragment>
     }`,
 });
-const globe = new THREE.Mesh(new THREE.SphereGeometry(RT, mobile ? 72 : 128, mobile ? 48 : 96), matTerre); terre.add(globe);
+function canvasTerre(W = 512, H = 256) {
+  const c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d');
+  const v = document.createElement('canvas'); v.width = W; v.height = H; const gv = v.getContext('2d');
+  gv.fillStyle = '#000'; gv.fillRect(0, 0, W, H);
+  const gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, '#e6edf3'); gr.addColorStop(0.1, '#1d5a8c'); gr.addColorStop(0.5, '#0e4677'); gr.addColorStop(0.9, '#1d5a8c'); gr.addColorStop(1, '#e6edf3');
+  g.fillStyle = gr; g.fillRect(0, 0, W, H);
+  let s0 = 11; const r = () => (s0 = (s0 * 16807) % 2147483647) / 2147483647;
+  for (let i = 0; i < 34; i++) {
+    const x = r() * W, y = H * 0.18 + r() * H * 0.64, rx = W * (0.02 + r() * 0.07), ry = H * (0.03 + r() * 0.08), a = r() * 3;
+    g.fillStyle = r() < 0.55 ? '#3f6b35' : '#a8925c'; g.beginPath(); g.ellipse(x, y, rx, ry, a, 0, 7); g.fill();
+    for (let k = 0; k < 14; k++) { gv.fillStyle = `rgba(255,${180 + r() * 40},${90 + r() * 40},${0.5 + r() * 0.5})`; gv.beginPath(); gv.arc(x + (r() - 0.5) * rx * 1.4, y + (r() - 0.5) * ry * 1.4, 0.6 + r() * 1.4, 0, 7); gv.fill(); }
+  }
+  g.fillStyle = 'rgba(255,255,255,.35)'; for (let i = 0; i < 46; i++) { g.beginPath(); g.ellipse(r() * W, r() * H, W * (0.01 + r() * 0.04), H * (0.008 + r() * 0.02), 0, 0, 7); g.fill(); }
+  const t = (cv) => { const x = new THREE.CanvasTexture(cv); x.colorSpace = THREE.SRGBColorSpace; x.generateMipmaps = true; return x; };
+  return { jour: t(c), villes: t(v) };
+}
+let matTerreLite = null;
+if (lite) { const tx = canvasTerre(); matTerreLite = new THREE.MeshLambertMaterial({ map: tx.jour, emissiveMap: tx.villes, emissive: '#ffffff', emissiveIntensity: 0 }); }
+const globe = new THREE.Mesh(new THREE.SphereGeometry(RT, lite ? 40 : 128, lite ? 28 : 96), lite ? matTerreLite : matTerre); terre.add(globe);
 // Repli : Terre simple (couleurs + éclairage standard) si le shader échoue ou rend du blanc
 function passerTerreSimple(raison) {
   if (terreSimple) return; terreSimple = true;
@@ -160,12 +203,40 @@ const atmo = new THREE.Mesh(new THREE.SphereGeometry(RT * 1.05, 64, 48), new THR
   fragmentShader: `uniform vec3 soleilDir; varying vec3 vN; varying vec3 vW; void main(){ float i=pow(max(0.72-dot(vN,vec3(0,0,1.)),0.),3.2); float j=0.35+0.65*smoothstep(-0.4,0.4,dot(-vW,normalize(soleilDir)));
     gl_FragColor=vec4(clamp(vec3(0.3,0.6,1.0)*i*j*1.6,0.,1.),1.); }`,
 }));
-terre.add(atmo);
+if (!lite) terre.add(atmo);
 terre.rotation.set(1.25, 0, 0.2); // on survole les tropiques, pas le pôle
 
 // ---------- Robots-astronautes ----------
 const persos = new Map();
+function creerPersoLite(b, i, court) {
+  // 3 appels de dessin par astronaute : combinaison+casque fusionnés, visière, voyants d'état
+  const coul = new THREE.Color(b.couleur || PALETTE[i % PALETTE.length]), hex = '#' + coul.getHexString();
+  const g = new THREE.Group(), corps = new THREE.Group(); g.add(corps);
+  const geoCorps = new THREE.CapsuleGeometry(0.24, 0.26, 2, 8).translate(0, -0.1, 0);
+  const geoTete = new THREE.SphereGeometry(0.3, 12, 8).translate(0, 0.42, 0);
+  const geoSac = new THREE.BoxGeometry(0.3, 0.38, 0.18).translate(0, -0.04, -0.22);
+  const blanc = mergeGeometries([geoCorps.toNonIndexed(), geoTete.toNonIndexed(), geoSac.toNonIndexed()]);
+  [geoCorps, geoTete, geoSac].forEach((x) => x.dispose());
+  corps.add(new THREE.Mesh(blanc, mat('#eef1f6')));
+  const visiere = new THREE.Mesh(new THREE.SphereGeometry(0.305, 12, 8, -Math.PI * 0.32, Math.PI * 0.64, Math.PI * 0.28, Math.PI * 0.42).translate(0, 0.42, 0), new THREE.MeshLambertMaterial({ color: coul.clone().multiplyScalar(0.6), emissive: coul, emissiveIntensity: 0.45 }));
+  corps.add(visiere);
+  const etatM = new THREE.MeshBasicMaterial({ color: COUL_ETAT[b.etat] || '#ccc', toneMapped: false });
+  const gp = new THREE.BoxGeometry(0.2, 0.12, 0.04).translate(0, -0.02, 0.235), gb = new THREE.SphereGeometry(0.05, 6, 4).translate(0.14, 0.86, -0.05);
+  const voy = new THREE.Mesh(mergeGeometries([gp.toNonIndexed(), gb.toNonIndexed()]), etatM); gp.dispose(); gb.dispose(); corps.add(voy);
+  const signal = new THREE.Group(); signal.position.set(0.14, 0.86, -0.05);
+  const anneau = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.025, 4, 16), new THREE.MeshBasicMaterial({ color: '#ff9f43', transparent: true, toneMapped: false, depthWrite: false }));
+  signal.add(anneau); signal.visible = false; g.add(signal);
+  const el = document.createElement('div'); el.className = 'etq';
+  el.innerHTML = '<span class="in"><span class="pt"></span><span class="n"></span></span>';
+  el.querySelector('.n').textContent = court;
+  const etq = new CSS2DObject(el); etq.position.y = 1.15; g.add(etq);
+  g.traverse((o) => { o.userData.botId = b.id; });
+  scene.add(g);
+  const factice = { material: { opacity: 0, color: { set() {} } } };
+  return { b, g, corps, bras: [new THREE.Group(), new THREE.Group()], jambes: [new THREE.Group(), new THREE.Group()], flammes: [], plastron: voy, balise: { material: etatM, scale: { setScalar() {} } }, signal, anneaux: [anneau], aura: factice, etq, el, inner: el.firstChild, coul: hex, court, chemin: [], place: null, phase: i * 0.83, vol: 0 };
+}
 function creerPerso(b, i, court) {
+  if (lite) return creerPersoLite(b, i, court);
   const coul = new THREE.Color(b.couleur || PALETTE[i % PALETTE.length]);
   const hex = '#' + coul.getHexString();
   const g = new THREE.Group();
@@ -249,9 +320,41 @@ function treillis(parent, a, b, rayon = 0.18) {
   parent.add(g);
 }
 
+function liberer(racine) {
+  racine.traverse((o) => {
+    if (o.element) o.element.remove();
+    if (o.geometry) o.geometry.dispose();
+    if (o.material && !o.material.userData.partage) { o.material.map && o.material.map !== texHalo && o.material.map.dispose(); o.material.dispose(); }
+  });
+}
+// Lite : retire vitres, lumières ponctuelles et ombres, puis fusionne les maillages statiques par matériau
+function allegerStation(racine) {
+  racine.updateMatrixWorld(true);
+  const groupes = new Map(), aRetirer = [];
+  racine.traverse((o) => {
+    if (o.isPointLight || o.isSprite) { aRetirer.push(o); return; }
+    if (!o.isMesh) return;
+    o.castShadow = o.receiveShadow = false;
+    if (o.material.transparent || o.material.isMeshPhysicalMaterial) { aRetirer.push(o); return; }
+    if (o.material.isMeshStandardMaterial) { const m = o.material; o.material = new THREE.MeshLambertMaterial({ color: m.color, map: m.map || null, side: m.side }); }
+    if (o.userData.dyn) return;
+    const k = o.material.uuid; if (!groupes.has(k)) groupes.set(k, { m: o.material, geos: [] });
+    const gg = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone();
+    for (const a of Object.keys(gg.attributes)) if (!['position', 'normal', 'uv'].includes(a)) gg.deleteAttribute(a);
+    if (!gg.attributes.uv) gg.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(gg.attributes.position.count * 2), 2));
+    gg.applyMatrix4(o.matrixWorld); groupes.get(k).geos.push(gg); aRetirer.push(o);
+  });
+  for (const o of aRetirer) { o.parent && o.parent.remove(o); if (o.geometry && !o.isSprite) o.geometry.dispose(); }
+  const inv = racine.matrixWorld.clone().invert();
+  for (const { m, geos } of groupes.values()) {
+    const fus = mergeGeometries(geos); geos.forEach((x) => x.dispose());
+    if (!fus) continue; fus.applyMatrix4(inv);
+    racine.add(new THREE.Mesh(fus, m));
+  }
+}
 function construire(bots) {
   scene.remove(station);
-  station.traverse((o) => { if (o.element) o.element.remove(); });
+  liberer(station);
   station = new THREE.Group(); scene.add(station);
   lumieresInt.length = 0;
   const f = forme();
@@ -352,7 +455,7 @@ function construire(bots) {
       mesh(cg, new THREE.BoxGeometry(1.15, 0.72, 0.36), mat('#2c3446', { metalness: 0.4 }), 0, 0.36, 0);
       const pupitre = new THREE.Group(); pupitre.position.set(0, 0.92, 0); pupitre.rotation.x = cote * 0.45; cg.add(pupitre);
       mesh(pupitre, new THREE.BoxGeometry(1.1, 0.5, 0.05), mat('#1a1f2b'), 0, 0, 0);
-      const ecran = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 0.42), lum('#121722')); ecran.position.z = -cote * 0.03; ecran.rotation.y = cote > 0 ? Math.PI : 0; pupitre.add(ecran);
+      const ecran = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 0.42), new THREE.MeshBasicMaterial({ color: '#121722', toneMapped: false })); ecran.userData.dyn = true; ecran.position.z = -cote * 0.03; ecran.rotation.y = cote > 0 ? Math.PI : 0; pupitre.add(ecran);
       for (let q = 0; q < 4; q++) mesh(cg, new THREE.BoxGeometry(0.08, 0.02, 0.05), lum(['#ff5f5f', '#3ddc97', '#4cc3ff', '#ffd23f'][q]), -0.3 + q * 0.2, 0.73, -cote * 0.12, false);
       const lueur = sprite('#6fa8ff', 1.8, 0.55); lueur.position.set(0, 0.95, -cote * 0.2); cg.add(lueur); lueur.visible = false;
       const pos = g.localToWorld(new THREE.Vector3(x, -0.3, cote * 0.28));
@@ -364,6 +467,7 @@ function construire(bots) {
   });
   // Rayon de la station pour le cadrage
   const box = new THREE.Box3().setFromObject(station);
+  if (lite) allegerStation(station);
   plan = { postes, places, modules, forme: f, ids: bots.map((b) => b.id).join('|'), box };
   while (places.length < bots.length) places.push({ ...places[places.length % 20], y: places[places.length % 20].y + 0.6 });
   appliquerVue(vueCourante, true);
@@ -410,7 +514,7 @@ function appliquer(data, { premier = false } = {}) {
   const bots = (data.bots || []).filter((b) => b && b.id);
   const ids = bots.map((b) => b.id).join('|');
   if (!plan || plan.ids !== ids || plan.forme !== forme()) {
-    for (const p of persos.values()) { p.el.remove(); scene.remove(p.g); }
+    for (const p of persos.values()) { p.el.remove(); scene.remove(p.g); p.g.traverse((o) => { if (o.geometry && !o.isSprite) o.geometry.dispose(); }); }
     persos.clear(); occupation.clear();
     construire(bots);
   }
@@ -482,8 +586,8 @@ function pasSim() {
   appliquer(data);
 }
 btnSim.addEventListener('click', () => {
-  if (sim) { clearInterval(sim); sim = null; btnSim.textContent = '▶ Simulation'; btnSim.setAttribute('aria-pressed', 'false'); document.getElementById('badge-mode').textContent = 'En direct'; charger(); }
-  else { sim = setInterval(pasSim, 3500); pasSim(); btnSim.textContent = '■ Arrêter'; btnSim.setAttribute('aria-pressed', 'true'); document.getElementById('badge-mode').textContent = 'Simulation'; }
+  if (sim) { clearInterval(sim); sim = null; btnSim.querySelector('.lib').textContent = 'Simulation'; btnSim.setAttribute('aria-pressed', 'false'); document.getElementById('badge-mode').textContent = 'En direct'; charger(); }
+  else { sim = setInterval(pasSim, 3500); pasSim(); btnSim.querySelector('.lib').textContent = 'Arrêter'; btnSim.setAttribute('aria-pressed', 'true'); document.getElementById('badge-mode').textContent = 'Simulation'; }
 });
 
 // ---------- Fiche ----------
@@ -534,6 +638,7 @@ function appliquerLumiere(nom) {
   soleil.color.set(l.coul); soleil.intensity = l.i; hemi.intensity = l.hemi; renderer.toneMappingExposure = l.expo;
   soleil.position.copy(dirSoleil).multiplyScalar(60); soleil.target.position.set(0, 0, 0);
   for (const li of lumieresInt) li.intensity = l.int;
+  if (matTerreLite) { matTerreLite.emissiveIntensity = nom === 'nuit' ? 1.4 : 0; }
   hemi.color.set(nom === 'nuit' ? '#b8c6ff' : '#9fb7ff'); hemi.groundColor.set(nom === 'nuit' ? '#3a4f8a' : '#1b4f8f');
   for (const p of persos.values()) p.aura.material.color.set(p.coul);
   if (plan) for (const po of plan.postes.values()) po.lueur.material.opacity = nom === 'nuit' ? 0.85 : 0.55;
@@ -612,6 +717,7 @@ function deChevaucher() {
 // ---------- Vérification du rendu (écran blanc = shader en échec sur certains GPU mobiles) ----------
 let verif = 0;
 function verifierImage() {
+  if (lite) return;
   if (params.has('simple')) return passerTerreSimple('test');
   const gl = renderer.getContext(), w = gl.drawingBufferWidth, h = gl.drawingBufferHeight, px = new Uint8Array(4);
   let blancs = 0, total = 0;
@@ -624,7 +730,10 @@ function verifierImage() {
 
 // ---------- Boucle ----------
 const horloge = new THREE.Clock(); const tmp = new THREE.Vector3(); let image = 0;
-renderer.setAnimationLoop(() => {
+let derniereImage = 0;
+function boucle(maintenant) {
+  if (lite && maintenant - derniereImage < 32) return; // ~30 i/s en mode lite
+  derniereImage = maintenant;
   const dt = Math.min(horloge.getDelta(), 0.1), t = horloge.elapsedTime;
   globe.rotation.y += dt * 0.004; uniTerre.temps.value = t;
   if (anim.t < 1) {
@@ -659,7 +768,7 @@ renderer.setAnimationLoop(() => {
       }
       if (e === 'attend') {
         p.anneaux.forEach((r, k) => { const q = ((t * 0.9 + k * 0.5) % 1); r.scale.setScalar(0.4 + q * 2.2); r.material.opacity = 1 - q; r.lookAt(camera.position); });
-        p.signal.children[2].material.opacity = 0.5 + Math.abs(Math.sin(t * 4)) * 0.5;
+        if (p.signal.children[2]) p.signal.children[2].material.opacity = 0.5 + Math.abs(Math.sin(t * 4)) * 0.5;
         p.balise.scale.setScalar(1 + Math.abs(Math.sin(t * 4)) * 0.8);
       } else p.balise.scale.setScalar(1);
       p.aura.material.opacity = e === 'libre' ? 0.12 : 0.32 + Math.sin(t * 2 + p.phase) * 0.06;
@@ -669,9 +778,12 @@ renderer.setAnimationLoop(() => {
   renderer.render(scene, camera);
   if (verif >= 0 && persos.size && horloge.elapsedTime > 1.2 && ++verif > 3) { verif = -1; if (!terreSimple) verifierImage(); }
   labels.render(scene, camera);
-  if ((image++ & 1) === 0) deChevaucher();
-});
+  if ((image++ & (lite ? 3 : 1)) === 0) deChevaucher();
+}
+function demarrer() { if (!perdu && !document.hidden) { horloge.getDelta(); renderer.setAnimationLoop(boucle); } }
+document.addEventListener('visibilitychange', () => { if (document.hidden) renderer.setAnimationLoop(null); else demarrer(); });
+demarrer();
 
 charger(true);
 setInterval(() => charger(), INTERVALLE_MS);
-window.__bureau = { simple: () => terreSimple, appliquer, persos, camera, vue: (n) => appliquerVue(n, true), pasSim };
+window.__bureau = { lite, renderer, extPerte, simple: () => terreSimple, appliquer, persos, camera, vue: (n) => appliquerVue(n, true), pasSim };

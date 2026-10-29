@@ -1,4 +1,4 @@
-:root{--fond:#05070d;--carte:rgba(22,27,38,.86);--bord:rgba(255,255,255,.08);--texte:#e6e9f0;--doux:#8b93a7;
+:root{color-scheme:dark;--fond:#05070d;--carte:rgba(22,27,38,.86);--bord:rgba(255,255,255,.08);--texte:#e6e9f0;--doux:#8b93a7;
 --occupe:#8b7bff;--attend:#ff9f43;--libre:#a7b0c0;--bureau:#5b6478;--accent:#8b7bff}
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;background:var(--fond);color:var(--texte);font:14px/1.4 Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
@@ -83,3 +83,9 @@ summary .doux{font-weight:400;font-size:11px;margin-left:auto}
   .app{grid-template-columns:1fr 280px}
   .legende{display:none}
 }
+
+.sim{display:inline-flex;align-items:center;gap:8px;-webkit-appearance:none;appearance:none;color:#e6e9f0 !important;-webkit-text-fill-color:#e6e9f0;background:#1a2030;font-size:14px;font-weight:600;padding:0 16px}
+.sim .lib{color:#e6e9f0;-webkit-text-fill-color:#e6e9f0;line-height:1}
+.sim .ico{width:0;height:0;border-style:solid;border-width:6px 0 6px 10px;border-color:transparent transparent transparent #e6e9f0}
+.sim[aria-pressed=true] .ico{width:10px;height:10px;border:0;background:#e6e9f0;border-radius:2px}
+.vues button{-webkit-appearance:none;appearance:none}
