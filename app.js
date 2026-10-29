@@ -19,8 +19,29 @@ const estCell = () => matchMedia('(max-width:860px)').matches;
 const forme = () => (conteneur.clientWidth < conteneur.clientHeight * 0.9 ? 'portrait' : 'paysage');
 
 // ---------- Rendu ----------
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+const params = new URLSearchParams(location.search);
+const mobile = matchMedia('(max-width:860px), (pointer:coarse)').matches;
+function avis(msg, duree = 0) {
+  let el = document.getElementById('avis-3d');
+  if (!el) { el = document.createElement('p'); el.id = 'avis-3d'; el.className = 'avis'; document.querySelector('.vue').append(el); }
+  el.textContent = msg; console.info('[3D]', msg);
+  clearTimeout(avis.t); if (duree) avis.t = setTimeout(() => el.remove(), duree);
+}
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ antialias: !mobile, powerPreference: 'default' });
+} catch (e) {
+  avis('La 3D (WebGL) n’est pas disponible sur cet appareil. Les états restent visibles dans le panneau.');
+  throw e;
+}
+renderer.setPixelRatio(Math.min(devicePixelRatio, mobile ? 1.5 : 2));
+renderer.setClearColor('#02030a', 1);
+let terreSimple = false;
+renderer.debug.onShaderError = (gl, prog, vs, fs) => {
+  avis('Shader non pris en charge : Terre simplifiée.', 8000);
+  if (!terreSimple) setTimeout(() => passerTerreSimple('erreur de shader'), 0);
+};
+renderer.domElement.addEventListener('webglcontextlost', (e) => { e.preventDefault(); avis('Contexte 3D perdu — rechargez la page.'); });
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -86,14 +107,15 @@ scene.add(terre);
 const uniTerre = { soleilDir: { value: dirSoleil }, temps: { value: 0 } };
 const matTerre = new THREE.ShaderMaterial({
   uniforms: uniTerre,
+  defines: { OCT: mobile ? 5 : 7 },
   vertexShader: `varying vec3 vP; varying vec3 vN; varying vec3 vW;
     void main(){ vP=position; vN=normalize(mat3(modelMatrix)*normal); vec4 w=modelMatrix*vec4(position,1.); vW=w.xyz; gl_Position=projectionMatrix*viewMatrix*w; }`,
   fragmentShader: `uniform vec3 soleilDir; uniform float temps; varying vec3 vP; varying vec3 vN; varying vec3 vW;
-    float hash(vec3 p){ p=fract(p*0.3183099+.1); p*=17.0; return fract(p.x*p.y*p.z*(p.x+p.y+p.z)); }
+    float hash(vec3 p){ p=fract(p*0.1031); p+=dot(p,p.yzx+19.19); return fract((p.x+p.y)*p.z); }
     float bruit(vec3 x){ vec3 i=floor(x); vec3 f=fract(x); f=f*f*(3.-2.*f);
       return mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),
                  mix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z); }
-    float fbm(vec3 p){ float s=0., a=.5; for(int i=0;i<7;i++){ s+=a*bruit(p); p=p*2.03+vec3(1.7,9.2,3.1); a*=.5; } return s/0.992; }
+    float fbm(vec3 p){ float s=0., a=.5; for(int i=0;i<OCT;i++){ s+=a*bruit(p); p=p*2.03+vec3(1.7,9.2,3.1); a*=.5; } return s/(1.-pow(.5,float(OCT))); }
     void main(){
       vec3 p=normalize(vP); vec3 N=normalize(vN); vec3 L=normalize(soleilDir); vec3 V=normalize(cameraPosition-vW);
       float h=fbm(p*2.4);
@@ -112,17 +134,31 @@ const matTerre = new THREE.ShaderMaterial({
       float zone=smoothstep(0.5,0.66,fbm(p*9.+7.));
       float villes=terre*(1.-glace)*zone*(0.55*smoothstep(0.58,0.78,fbm(p*140.+1.))+0.18*smoothstep(0.52,0.7,fbm(p*35.+3.)));
       vec3 nuit=vec3(1.,.72,.38)*villes*1.3*(1.-nu*0.85)+col*0.015;
-      gl_FragColor=vec4(mix(nuit,jour,t),1.);
+      gl_FragColor=vec4(clamp(mix(nuit,jour,t),0.,1.),1.);
       #include <tonemapping_fragment>
       #include <colorspace_fragment>
     }`,
 });
-const globe = new THREE.Mesh(new THREE.SphereGeometry(RT, 128, 96), matTerre); terre.add(globe);
+const globe = new THREE.Mesh(new THREE.SphereGeometry(RT, mobile ? 72 : 128, mobile ? 48 : 96), matTerre); terre.add(globe);
+// Repli : Terre simple (couleurs + éclairage standard) si le shader échoue ou rend du blanc
+function passerTerreSimple(raison) {
+  if (terreSimple) return; terreSimple = true;
+  const c = document.createElement('canvas'); c.width = 256; c.height = 128; const g = c.getContext('2d');
+  const gr = g.createLinearGradient(0, 0, 0, 128); gr.addColorStop(0, '#dfe8f0'); gr.addColorStop(0.12, '#1d5a8c'); gr.addColorStop(0.5, '#0f4a7a'); gr.addColorStop(0.88, '#1d5a8c'); gr.addColorStop(1, '#dfe8f0');
+  g.fillStyle = gr; g.fillRect(0, 0, 256, 128);
+  let s0 = 11; const r = () => (s0 = (s0 * 16807) % 2147483647) / 2147483647;
+  for (let i = 0; i < 26; i++) { g.fillStyle = r() < 0.5 ? '#3f6b35' : '#a8925c'; g.beginPath(); g.ellipse(r() * 256, 20 + r() * 88, 8 + r() * 26, 5 + r() * 14, r() * 3, 0, 7); g.fill(); }
+  g.fillStyle = 'rgba(255,255,255,.35)'; for (let i = 0; i < 40; i++) { g.beginPath(); g.ellipse(r() * 256, r() * 128, 6 + r() * 20, 2 + r() * 5, 0, 0, 7); g.fill(); }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  globe.material = new THREE.MeshStandardMaterial({ map: t, roughness: 0.9, metalness: 0 });
+  atmo.visible = false;
+  if (params.has('debug') || raison !== 'test') avis('Mode compatibilité : Terre simplifiée (' + raison + ').', 8000);
+}
 const atmo = new THREE.Mesh(new THREE.SphereGeometry(RT * 1.05, 64, 48), new THREE.ShaderMaterial({
   uniforms: { soleilDir: { value: dirSoleil } }, side: THREE.BackSide, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false,
   vertexShader: `varying vec3 vN; varying vec3 vW; void main(){ vN=normalize(normalMatrix*normal); vW=normalize(mat3(modelMatrix)*normal); gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
-  fragmentShader: `uniform vec3 soleilDir; varying vec3 vN; varying vec3 vW; void main(){ float i=pow(0.72-dot(vN,vec3(0,0,1.)),3.2); float j=0.35+0.65*smoothstep(-0.4,0.4,dot(-vW,normalize(soleilDir)));
-    gl_FragColor=vec4(vec3(0.3,0.6,1.0)*i*j*1.6,1.); }`,
+  fragmentShader: `uniform vec3 soleilDir; varying vec3 vN; varying vec3 vW; void main(){ float i=pow(max(0.72-dot(vN,vec3(0,0,1.)),0.),3.2); float j=0.35+0.65*smoothstep(-0.4,0.4,dot(-vW,normalize(soleilDir)));
+    gl_FragColor=vec4(clamp(vec3(0.3,0.6,1.0)*i*j*1.6,0.,1.),1.); }`,
 }));
 terre.add(atmo);
 terre.rotation.set(1.25, 0, 0.2); // on survole les tropiques, pas le pôle
@@ -573,6 +609,19 @@ function deChevaucher() {
   }
 }
 
+// ---------- Vérification du rendu (écran blanc = shader en échec sur certains GPU mobiles) ----------
+let verif = 0;
+function verifierImage() {
+  if (params.has('simple')) return passerTerreSimple('test');
+  const gl = renderer.getContext(), w = gl.drawingBufferWidth, h = gl.drawingBufferHeight, px = new Uint8Array(4);
+  let blancs = 0, total = 0;
+  for (const [fx, fy] of [[0.1, 0.1], [0.9, 0.1], [0.1, 0.9], [0.9, 0.9], [0.5, 0.15], [0.5, 0.85], [0.2, 0.5], [0.8, 0.5]]) {
+    gl.readPixels(Math.floor(w * fx), Math.floor(h * fy), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); total++;
+    if (px[0] > 245 && px[1] > 245 && px[2] > 245) blancs++;
+  }
+  if (params.has('forcerBlanc') || blancs >= total - 1) passerTerreSimple('rendu blanc détecté');
+}
+
 // ---------- Boucle ----------
 const horloge = new THREE.Clock(); const tmp = new THREE.Vector3(); let image = 0;
 renderer.setAnimationLoop(() => {
@@ -618,10 +667,11 @@ renderer.setAnimationLoop(() => {
   }
   controls.update();
   renderer.render(scene, camera);
+  if (verif >= 0 && persos.size && horloge.elapsedTime > 1.2 && ++verif > 3) { verif = -1; if (!terreSimple) verifierImage(); }
   labels.render(scene, camera);
   if ((image++ & 1) === 0) deChevaucher();
 });
 
 charger(true);
 setInterval(() => charger(), INTERVALLE_MS);
-window.__bureau = { appliquer, persos, camera, vue: (n) => appliquerVue(n, true), pasSim };
+window.__bureau = { simple: () => terreSimple, appliquer, persos, camera, vue: (n) => appliquerVue(n, true), pasSim };
