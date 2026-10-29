@@ -1,0 +1,22 @@
+{"maj":"2026-10-28T20:30:00-04:00","bots":[
+{"id":"jarvis","nom":"Jarvis · Adjoint principal","etat":"occupe","tache":"Analyse"},
+{"id":"prototypes","nom":"Prototypes","etat":"occupe","tache":"Mise à jour"},
+{"id":"grokbuild","nom":"Grokbuild","etat":"libre","tache":""},
+{"id":"second-brain","nom":"Second Brain","etat":"occupe","tache":"Rédaction"},
+{"id":"x-signets","nom":"X Signets","etat":"libre","tache":""},
+{"id":"x-chat","nom":"X Chat","etat":"libre","tache":""},
+{"id":"x-news","nom":"X News","etat":"occupe","tache":"Veille"},
+{"id":"finance-reco","nom":"Finance - Recommandations · Achat et vente","etat":"libre","tache":""},
+{"id":"finance-portefeuilles","nom":"Finance · Portefeuilles · Totaux · Watchlist","etat":"occupe","tache":"Mise à jour"},
+{"id":"finance-trader","nom":"Finance - Trader","etat":"libre","tache":""},
+{"id":"voyages-orchestrateur","nom":"Voyages – Orchestrateur","etat":"libre","tache":""},
+{"id":"voyages-vols","nom":"Voyages - Vols","etat":"occupe","tache":"Recherche"},
+{"id":"voyages-activites","nom":"Voyages - Activités","etat":"libre","tache":""},
+{"id":"voyages-incontournables","nom":"Voyages - Incontournables","etat":"libre","tache":""},
+{"id":"restos","nom":"Restos et microbrasseries","etat":"libre","tache":""},
+{"id":"cuisine-quebec","nom":"Cuisine Québec","etat":"occupe","tache":"Recherche"},
+{"id":"achat-reservation","nom":"Achat et réservation · Recherche et conseils","etat":"libre","tache":""},
+{"id":"loto-quebec","nom":"Loto-Québec","etat":"libre","tache":""},
+{"id":"tesla","nom":"Tesla · Commandes auto","etat":"libre","tache":""},
+{"id":"vie-privee","nom":"Vie privée","etat":"libre","tache":""}
+]}
