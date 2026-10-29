@@ -44,9 +44,10 @@ La page relit `status.json` toutes les 60 secondes. Le nombre de bots est lu dan
 
 ## Prochaines étapes
 
-1. Créer le dépôt public `proto-bureau-bots` et activer GitHub Pages (avec l'OK de Guy).
-2. Ajouter un script `statut.sh <bot> occupe|libre "tâche"` qui met à jour `status.json` avec `gh`.
-3. Ajouter l'appel à ce script dans les instructions des bots (avec l'OK de Guy).
+En ligne : https://guygtr.github.io/proto-bureau-bots/ (bouton **Simulation** pour voir les astronautes bouger).
+
+1. Ajouter un script `statut.sh <bot> occupe|attend|libre "tâche"` qui met à jour `status.json` avec `gh` (avec l'OK de Guy).
+2. Ajouter l'appel à ce script dans les instructions des bots (avec l'OK de Guy).
 
 ---
 © GTR Technologies Inc. · Tous droits réservés.
